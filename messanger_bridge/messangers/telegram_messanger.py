@@ -195,10 +195,20 @@ class TelegramMessanger(AbstractMessanger):
                 f"От {username} из {message.messanger.value}: {message.message}"
             )
             try:
-                await bot.send_message(
-                    chat_id=output_channel,
-                    text=message_content,
-                )
+                for _message_content in self.message_parts(message_content):
+                    await bot.send_message(
+                        chat_id=output_channel,
+                        text=message_content,
+                    )
             except Exception:
                 self.storage.disconnect(source_chat_id=output_channel)
                 logger.info(f"Disconnect {output_channel} because of error")
+
+    def message_parts(self, message: str) -> list[str]:
+        parts = []
+        while len(message) > 4000:
+            parts.append(message[:4000])
+            message = message[4000:]
+
+        parts.append(message)
+        return parts
