@@ -192,7 +192,7 @@ class TelegramMessanger(AbstractMessanger):
         for output_channel in output_channels:
             username = self.storage.get_nickname(message.chat_id) or message.username
             message_content = (
-                f"От {username} из {message.messanger.value}: {message.message}"
+                f"{username} [{message.messanger.value}]\n{message.message}"
             )
             try:
                 for _message_content in self.message_parts(message_content):
