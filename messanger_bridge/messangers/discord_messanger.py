@@ -6,7 +6,7 @@ import aiohttp
 import discord
 
 from messangers.abstract_messanger import AbstractMessanger
-from models.message import Message, MessangerEnum
+from models.message import Message, MessangerEnum, MessageFile
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,26 @@ class DiscordMessanger(AbstractMessanger):
             return None
 
         images = []
+        audios = []
+        videos = []
+        animations = []
+        documents = []
         for attachment in discord_message.attachments:
             if attachment.content_type.startswith("image"):
-                images.append(attachment.url)
+                message_file = MessageFile(name=attachment.filename, url=attachment.url)
+                images.append(message_file)
+            elif attachment.content_type.startswith("audio"):
+                message_file = MessageFile(name=attachment.filename, url=attachment.url)
+                audios.append(message_file)
+            elif attachment.content_type.startswith("video"):
+                message_file = MessageFile(name=attachment.filename, url=attachment.url)
+                videos.append(message_file)
+            elif attachment.filename.endswith(".gif"):
+                message_file = MessageFile(name=attachment.filename, url=attachment.url)
+                animations.append(message_file)
+            else:
+                message_file = MessageFile(name=attachment.filename, url=attachment.url)
+                documents.append(message_file)
 
         message = Message(
             message_id=str(discord_message.id),
@@ -67,6 +84,10 @@ class DiscordMessanger(AbstractMessanger):
             timestamp=discord_message.created_at,
             messanger=MessangerEnum.discord,
             images=images,
+            audios=audios,
+            videos=videos,
+            animations=animations,
+            documents=documents,
         )
         await messanger.new_message(message=message)
 
@@ -78,23 +99,97 @@ class DiscordMessanger(AbstractMessanger):
         if not recipients:
             return None
 
+        message_content = message.message
         try:
             async with aiohttp.ClientSession() as session:
-                file_kwargs = {}
-                if message.images:
-                    image_data = await download_file(session, message.images[0])
-                    if image_data:
-                        buffer = BytesIO(image_data)
-                        file_kwargs["file"] = discord.File(buffer, filename="image.png")
-
                 webhook = discord.Webhook.from_url(
                     self.settings.dsn,
                     session=session,
                 )
-                await webhook.send(
-                    message.message,
-                    username=username,
-                    **file_kwargs,
-                )
+                for image in message.images:
+                    file_kwargs = {}
+                    image_data = await download_file(session, image.url)
+                    if image_data:
+                        buffer = BytesIO(image_data)
+                        file_kwargs["file"] = discord.File(buffer, filename=image.name)
+                    else:
+                        continue
+
+                    await webhook.send(
+                        message_content,
+                        username=username,
+                        **file_kwargs,
+                    )
+                    message_content = ""
+
+                for audio in message.audios:
+                    file_kwargs = {}
+                    audio_data = await download_file(session, audio.url)
+                    if audio_data:
+                        buffer = BytesIO(audio_data)
+                        file_kwargs["file"] = discord.File(buffer, filename=audio.name)
+                    else:
+                        continue
+
+                    await webhook.send(
+                        message_content,
+                        username=username,
+                        **file_kwargs,
+                    )
+                    message_content = ""
+
+                for video in message.videos:
+                    file_kwargs = {}
+                    video_data = await download_file(session, video.url)
+                    if video_data:
+                        buffer = BytesIO(video_data)
+                        file_kwargs["file"] = discord.File(buffer, filename=video.name)
+                    else:
+                        continue
+
+                    await webhook.send(
+                        message_content,
+                        username=username,
+                        **file_kwargs,
+                    )
+                    message_content = ""
+
+                for animation in message.animations:
+                    file_kwargs = {}
+                    animation_data = await download_file(session, animation.url)
+                    if animation_data:
+                        buffer = BytesIO(animation_data)
+                        file_kwargs["file"] = discord.File(buffer, filename=animation.name)
+                    else:
+                        continue
+
+                    await webhook.send(
+                        message_content,
+                        username=username,
+                        **file_kwargs,
+                    )
+                    message_content = ""
+
+                for document in message.documents:
+                    file_kwargs = {}
+                    document_data = await download_file(session, document.url)
+                    if document_data:
+                        buffer = BytesIO(document_data)
+                        file_kwargs["file"] = discord.File(buffer, filename=document.name)
+                    else:
+                        continue
+
+                    await webhook.send(
+                        message_content,
+                        username=username,
+                        **file_kwargs,
+                    )
+                    message_content = ""
+
+                if message_content:
+                    await webhook.send(
+                        message_content,
+                        username=username,
+                    )
         except Exception:
             logger.exception("Error sending message")

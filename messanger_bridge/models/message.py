@@ -9,6 +9,11 @@ class MessangerEnum(enum.Enum):
     discord = "discord"
 
 
+class MessageFile(pydantic.BaseModel):
+    name: str
+    url: str
+
+
 class Message(pydantic.BaseModel):
     message_id: str
     message: str
@@ -18,4 +23,8 @@ class Message(pydantic.BaseModel):
     timestamp: datetime.datetime
     messanger: MessangerEnum
     reply_to_id: str | None = None
-    images: list[str] = pydantic.Field(default_factory=list)
+    images: list[MessageFile] = pydantic.Field(default_factory=list)
+    audios: list[MessageFile] = pydantic.Field(default_factory=list)
+    videos: list[MessageFile] = pydantic.Field(default_factory=list)
+    animations: list[MessageFile] = pydantic.Field(default_factory=list)
+    documents: list[MessageFile] = pydantic.Field(default_factory=list)

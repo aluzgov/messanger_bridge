@@ -2,7 +2,8 @@ import asyncio
 import logging
 import typing
 
-from telegram import Update, Bot, InputMediaPhoto
+from telegram import Update, Bot, InputMediaPhoto, InputMediaAudio, InputMediaVideo, \
+    InputMediaAnimation, InputMediaDocument
 from telegram.error import BadRequest, Forbidden
 from telegram.ext import (
     Application,
@@ -13,7 +14,7 @@ from telegram.ext import (
 )
 
 from messangers.abstract_messanger import AbstractMessanger
-from models.message import Message, MessangerEnum
+from models.message import Message, MessangerEnum, MessageFile
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,18 @@ class TelegramMessanger(AbstractMessanger):
             )
             application.add_handler(
                 MessageHandler(filters.PHOTO & (~filters.COMMAND), self.handle_photo)
+            )
+            application.add_handler(
+                MessageHandler(filters.AUDIO & (~filters.COMMAND), self.handle_audio)
+            )
+            application.add_handler(
+                MessageHandler(filters.VIDEO & (~filters.COMMAND), self.handle_video)
+            )
+            application.add_handler(
+                MessageHandler(filters.ANIMATION & (~filters.COMMAND), self.handle_animation)
+            )
+            application.add_handler(
+                MessageHandler(filters.ATTACHMENT & (~filters.COMMAND), self.handle_attachment)
             )
             application.add_handler(
                 CommandHandler(["start", "help"], self.handle_start)
@@ -93,7 +106,8 @@ class TelegramMessanger(AbstractMessanger):
             file_id = update.message.photo[-1].file_id
             file = await context.bot.get_file(file_id)
             file_path = file.file_path
-            images.append(file_path)
+            message_file = MessageFile(name="image.png", url=file_path)
+            images.append(message_file)
 
         reply_to_id = None
         if update.message.reply_to_message:
@@ -109,6 +123,130 @@ class TelegramMessanger(AbstractMessanger):
             messanger=MessangerEnum.telegram,
             reply_to_id=reply_to_id,
             images=images,
+        )
+        await self.new_message(message=message)
+
+    async def handle_audio(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        username = (
+                update.message.from_user.username or update.message.from_user.first_name
+        )
+        audios = []
+        if update.message.audio:
+            file_id = update.message.audio.file_id
+            file = await context.bot.get_file(file_id)
+            file_path = file.file_path
+            message_file = MessageFile(name=update.message.audio.file_name, url=file_path)
+            audios.append(message_file)
+
+        reply_to_id = None
+        if update.message.reply_to_message:
+            reply_to_id = str(update.message.reply_to_message.message_id)
+
+        message = Message(
+            message_id=str(update.message.message_id),
+            message=update.message.caption or "",
+            chat_id=str(update.message.chat_id),
+            user_id=str(update.message.from_user.id),
+            username=username,
+            timestamp=update.message.date,
+            messanger=MessangerEnum.telegram,
+            reply_to_id=reply_to_id,
+            audios=audios,
+        )
+        await self.new_message(message=message)
+
+    async def handle_video(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        username = (
+                update.message.from_user.username or update.message.from_user.first_name
+        )
+        videos = []
+        if update.message.video:
+            file_id = update.message.video.file_id
+            file = await context.bot.get_file(file_id)
+            file_path = file.file_path
+            message_file = MessageFile(name=update.message.video.file_name, url=file_path)
+            videos.append(message_file)
+
+        reply_to_id = None
+        if update.message.reply_to_message:
+            reply_to_id = str(update.message.reply_to_message.message_id)
+
+        message = Message(
+            message_id=str(update.message.message_id),
+            message=update.message.caption or "",
+            chat_id=str(update.message.chat_id),
+            user_id=str(update.message.from_user.id),
+            username=username,
+            timestamp=update.message.date,
+            messanger=MessangerEnum.telegram,
+            reply_to_id=reply_to_id,
+            videos=videos,
+        )
+        await self.new_message(message=message)
+
+    async def handle_animation(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        username = (
+                update.message.from_user.username or update.message.from_user.first_name
+        )
+        animations = []
+        if update.message.animation:
+            file_id = update.message.animation.file_id
+            file = await context.bot.get_file(file_id)
+            file_path = file.file_path
+            message_file = MessageFile(name=update.message.animation.file_name, url=file_path)
+            animations.append(message_file)
+
+        reply_to_id = None
+        if update.message.reply_to_message:
+            reply_to_id = str(update.message.reply_to_message.message_id)
+
+        message = Message(
+            message_id=str(update.message.message_id),
+            message=update.message.caption or "",
+            chat_id=str(update.message.chat_id),
+            user_id=str(update.message.from_user.id),
+            username=username,
+            timestamp=update.message.date,
+            messanger=MessangerEnum.telegram,
+            reply_to_id=reply_to_id,
+            animations=animations,
+        )
+        await self.new_message(message=message)
+
+    async def handle_attachment(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        username = (
+                update.message.from_user.username or update.message.from_user.first_name
+        )
+        documents = []
+        if update.message.document:
+            file_id = update.message.document.file_id
+            file = await context.bot.get_file(file_id)
+            file_path = file.file_path
+            message_file = MessageFile(name=update.message.document.file_name, url=file_path)
+            documents.append(message_file)
+
+        reply_to_id = None
+        if update.message.reply_to_message:
+            reply_to_id = str(update.message.reply_to_message.message_id)
+
+        message = Message(
+            message_id=str(update.message.message_id),
+            message=update.message.caption or "",
+            chat_id=str(update.message.chat_id),
+            user_id=str(update.message.from_user.id),
+            username=username,
+            timestamp=update.message.date,
+            messanger=MessangerEnum.telegram,
+            reply_to_id=reply_to_id,
+            documents=documents,
         )
         await self.new_message(message=message)
 
@@ -237,11 +375,38 @@ class TelegramMessanger(AbstractMessanger):
                     )
 
                 for image_chunk in self.message_parts(message.images, max_size=10):
-                    image_input = [InputMediaPhoto(media=image) for image in image_chunk]
+                    image_input = [InputMediaPhoto(media=image.url, filename=image.name) for image in image_chunk]
                     if image_input:
                         await bot.send_media_group(
                             chat_id=output_channel, media=image_input
                         )
+
+                for audio_chunk in self.message_parts(message.audios, max_size=10):
+                    audio_input = [InputMediaAudio(media=audio.url, filename=audio.name) for audio in audio_chunk]
+                    if audio_input:
+                        await bot.send_media_group(
+                            chat_id=output_channel, media=audio_input
+                        )
+
+                for video_chunk in self.message_parts(message.videos, max_size=10):
+                    video_input = [InputMediaVideo(media=video.url, filename=video.name) for video in video_chunk]
+                    if video_input:
+                        await bot.send_media_group(
+                            chat_id=output_channel, media=video_input
+                        )
+
+                for animation in message.animations:
+                    await bot.send_animation(
+                        chat_id=output_channel, animation=animation.url,
+                    )
+
+                for document_chunk in self.message_parts(message.documents, max_size=10):
+                    document_input = [InputMediaDocument(media=document.url, filename=document.name) for document in document_chunk]
+                    if document_input:
+                        await bot.send_media_group(
+                            chat_id=output_channel, media=document_input
+                        )
+
             except (Forbidden, BadRequest):
                 self.storage.disconnect(source_chat_id=output_channel)
                 logger.exception(f"Disconnect {output_channel} because of error")
