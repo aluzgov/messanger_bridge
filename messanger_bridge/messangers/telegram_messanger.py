@@ -198,7 +198,7 @@ class TelegramMessanger(AbstractMessanger):
                 for _message_content in self.message_parts(message_content):
                     await bot.send_message(
                         chat_id=output_channel,
-                        text=message_content,
+                        text=_message_content,
                     )
             except Exception:
                 self.storage.disconnect(source_chat_id=output_channel)
