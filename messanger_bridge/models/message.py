@@ -18,3 +18,4 @@ class Message(pydantic.BaseModel):
     timestamp: datetime.datetime
     messanger: MessangerEnum
     reply_to_id: str | None = None
+    images: list[str] = pydantic.Field(default_factory=list)

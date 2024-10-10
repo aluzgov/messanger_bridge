@@ -1,5 +1,6 @@
 import logging
 from functools import partial
+from io import BytesIO
 
 import aiohttp
 import discord
@@ -12,6 +13,22 @@ logger = logging.getLogger(__name__)
 
 class DiscordClient(discord.Client):
     pass
+
+
+async def download_file(session: aiohttp.ClientSession, url: str) -> bytes | None:
+    chunks = []
+    max_file_size = 8 * 1024 * 1024
+    async with session.get(url) as response:
+        downloaded_size = 0
+        async for chunk in response.content.iter_chunked(1024):
+            downloaded_size += len(chunk)
+            if downloaded_size > max_file_size:
+                logger.warning("File %s too large", url)
+                return None
+
+            chunks.append(chunk)
+        file_bytes = b''.join(chunks)
+        return file_bytes
 
 
 class DiscordMessanger(AbstractMessanger):
@@ -36,6 +53,11 @@ class DiscordMessanger(AbstractMessanger):
         if myself:
             return None
 
+        images = []
+        for attachment in discord_message.attachments:
+            if attachment.content_type.startswith("image"):
+                images.append(attachment.url)
+
         message = Message(
             message_id=str(discord_message.id),
             message=discord_message.content,
@@ -44,6 +66,7 @@ class DiscordMessanger(AbstractMessanger):
             username=discord_message.author.display_name,
             timestamp=discord_message.created_at,
             messanger=MessangerEnum.discord,
+            images=images,
         )
         await messanger.new_message(message=message)
 
@@ -55,12 +78,23 @@ class DiscordMessanger(AbstractMessanger):
         if not recipients:
             return None
 
-        async with aiohttp.ClientSession() as session:
-            webhook = discord.Webhook.from_url(
-                self.settings.dsn,
-                session=session,
-            )
-            await webhook.send(
-                message.message,
-                username=username,
-            )
+        try:
+            async with aiohttp.ClientSession() as session:
+                file_kwargs = {}
+                if message.images:
+                    image_data = await download_file(session, message.images[0])
+                    if image_data:
+                        buffer = BytesIO(image_data)
+                        file_kwargs["file"] = discord.File(buffer, filename="image.png")
+
+                webhook = discord.Webhook.from_url(
+                    self.settings.dsn,
+                    session=session,
+                )
+                await webhook.send(
+                    message.message,
+                    username=username,
+                    **file_kwargs,
+                )
+        except Exception:
+            logger.exception("Error sending message")

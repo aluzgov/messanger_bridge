@@ -1,8 +1,9 @@
 import asyncio
-import contextlib
 import logging
+import typing
 
-from telegram import Update, Bot
+from telegram import Update, Bot, InputMediaPhoto
+from telegram.error import BadRequest, Forbidden
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -16,6 +17,7 @@ from models.message import Message, MessangerEnum
 
 logger = logging.getLogger(__name__)
 
+
 class TelegramMessanger(AbstractMessanger):
 
     def run(self) -> None:
@@ -26,7 +28,10 @@ class TelegramMessanger(AbstractMessanger):
             application = Application.builder().token(self.settings.token).build()
 
             application.add_handler(
-                MessageHandler(filters.TEXT & (~filters.COMMAND), self.handle_message)
+                MessageHandler(filters.TEXT & (~filters.COMMAND), self.handle_text_message)
+            )
+            application.add_handler(
+                MessageHandler(filters.PHOTO & (~filters.COMMAND), self.handle_photo)
             )
             application.add_handler(
                 CommandHandler(["start", "help"], self.handle_start)
@@ -55,11 +60,11 @@ class TelegramMessanger(AbstractMessanger):
         finally:
             loop.close()
 
-    async def handle_message(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    async def handle_text_message(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-            update.message.from_user.username or update.message.from_user.first_name
+                update.message.from_user.username or update.message.from_user.first_name
         )
         reply_to_id = None
         if update.message.reply_to_message:
@@ -77,15 +82,45 @@ class TelegramMessanger(AbstractMessanger):
         )
         await self.new_message(message=message)
 
+    async def handle_photo(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        username = (
+                update.message.from_user.username or update.message.from_user.first_name
+        )
+        images = []
+        if update.message.photo:
+            file_id = update.message.photo[-1].file_id
+            file = await context.bot.get_file(file_id)
+            file_path = file.file_path
+            images.append(file_path)
+
+        reply_to_id = None
+        if update.message.reply_to_message:
+            reply_to_id = str(update.message.reply_to_message.message_id)
+
+        message = Message(
+            message_id=str(update.message.message_id),
+            message=update.message.caption or "",
+            chat_id=str(update.message.chat_id),
+            user_id=str(update.message.from_user.id),
+            username=username,
+            timestamp=update.message.date,
+            messanger=MessangerEnum.telegram,
+            reply_to_id=reply_to_id,
+            images=images,
+        )
+        await self.new_message(message=message)
+
     async def handle_start(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         help_message = """Выбери себе никнейм с помощью команды /nickname <твой ник>
 Когда будешь готов(а) к общению, жми /connect"""
         await update.effective_message.reply_text(help_message)
 
     async def handle_connect(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if not self.storage.is_banned(chat_id=str(update.message.chat_id)):
             if self.settings.moderation:
@@ -102,13 +137,13 @@ class TelegramMessanger(AbstractMessanger):
                 await update.effective_message.reply_text("Ok")
 
     async def handle_disconnect(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         self.storage.disconnect(source_chat_id=str(update.message.chat_id))
         await update.effective_message.reply_text("Ok")
 
     async def handle_ban(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -118,7 +153,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text(f"Ok {chat_id}")
 
     async def handle_unban(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -128,7 +163,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text(f"Ok {chat_id}")
 
     async def handle_list_of_users(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -143,7 +178,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text("No users")
 
     async def handle_on_moderation(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -158,7 +193,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text("No users")
 
     async def handle_approve(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -170,7 +205,7 @@ class TelegramMessanger(AbstractMessanger):
             await bot.send_message(chat_id=chat_id, text=f"Проходите в вип заааааал")
 
     async def handle_set_nickname(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         try:
             nickname = " ".join(context.args)
@@ -195,20 +230,29 @@ class TelegramMessanger(AbstractMessanger):
                 f"{username} [{message.messanger.value}]\n{message.message}"
             )
             try:
-                for _message_content in self.message_parts(message_content):
+                for _message_content in self.message_parts(message_content, max_size=4000):
                     await bot.send_message(
                         chat_id=output_channel,
                         text=_message_content,
                     )
-            except Exception:
-                self.storage.disconnect(source_chat_id=output_channel)
-                logger.info(f"Disconnect {output_channel} because of error")
 
-    def message_parts(self, message: str) -> list[str]:
+                for image_chunk in self.message_parts(message.images, max_size=10):
+                    image_input = [InputMediaPhoto(media=image) for image in image_chunk]
+                    if image_input:
+                        await bot.send_media_group(
+                            chat_id=output_channel, media=image_input
+                        )
+            except (Forbidden, BadRequest):
+                self.storage.disconnect(source_chat_id=output_channel)
+                logger.exception(f"Disconnect {output_channel} because of error")
+            except Exception:
+                logger.exception("Exception in send_message")
+
+    def message_parts[T](self, message: typing.Iterable[T], max_size: int) -> list[T]:
         parts = []
-        while len(message) > 4000:
-            parts.append(message[:4000])
-            message = message[4000:]
+        while len(message) > max_size:
+            parts.append(message[:max_size])
+            message = message[max_size:]
 
         parts.append(message)
         return parts
