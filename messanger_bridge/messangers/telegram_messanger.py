@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from telegram import Update, Bot
 from telegram.ext import (
@@ -12,6 +13,7 @@ from telegram.ext import (
 from messangers.abstract_messanger import AbstractMessanger
 from models.message import Message, MessangerEnum
 
+logger = logging.getLogger(__name__)
 
 class TelegramMessanger(AbstractMessanger):
 
@@ -186,6 +188,7 @@ class TelegramMessanger(AbstractMessanger):
         output_channels = self.storage.get_recipients(source_chat_id=message.chat_id)
 
         bot = Bot(self.settings.token)
+        logger.info("send message to %s users", len(output_channels))
         for output_channel in output_channels:
             username = self.storage.get_nickname(message.chat_id) or message.username
             message_content = (
@@ -195,3 +198,5 @@ class TelegramMessanger(AbstractMessanger):
                 chat_id=output_channel,
                 text=message_content,
             )
+
+        logger.info("messages sent")
