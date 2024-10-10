@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "messanger-bridge"
+version = "0.1.0"
+description = ""
+authors = ["andrey.luzgov <andrey.luzgov@dcsportsoft.com>"]
+readme = "README.md"
+packages = [{include = "messanger_bridge"}]
+
+[tool.poetry.scripts]
+app = "main:main"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.9.2"
+hiredis = "^3.0.0"
+pydantic-settings = "^2.5.2"
+python-telegram-bot = "^21.6"
+discord-py = "^2.4.0"
+pottery = "^3.0.0"
+redis = "4.6.0"
+certifi = "^2024.8.30"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.10.0"
+mypy = "^1.11.2"
+flake8 = "^7.1.1"
+isort = "^5.13.2"
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
