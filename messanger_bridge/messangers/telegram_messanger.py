@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 
 from telegram import Update, Bot
@@ -188,15 +189,16 @@ class TelegramMessanger(AbstractMessanger):
         output_channels = self.storage.get_recipients(source_chat_id=message.chat_id)
 
         bot = Bot(self.settings.token)
-        logger.info("send message to %s users", len(output_channels))
         for output_channel in output_channels:
             username = self.storage.get_nickname(message.chat_id) or message.username
             message_content = (
                 f"От {username} из {message.messanger.value}: {message.message}"
             )
-            await bot.send_message(
-                chat_id=output_channel,
-                text=message_content,
-            )
-
-        logger.info("messages sent")
+            try:
+                await bot.send_message(
+                    chat_id=output_channel,
+                    text=message_content,
+                )
+            except Exception:
+                self.storage.disconnect(source_chat_id=output_channel)
+                logger.info(f"Disconnect {output_channel} because of error")
