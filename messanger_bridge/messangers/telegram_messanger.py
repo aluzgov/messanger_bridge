@@ -3,8 +3,8 @@ import logging
 import typing
 
 from telegram import Update, Bot, InputMediaPhoto, InputMediaAudio, InputMediaVideo, \
-    InputMediaAnimation, InputMediaDocument
-from telegram.error import BadRequest, Forbidden
+    InputMediaDocument
+from telegram.error import Forbidden
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -407,7 +407,7 @@ class TelegramMessanger(AbstractMessanger):
                             chat_id=output_channel, media=document_input
                         )
 
-            except (Forbidden, BadRequest):
+            except Forbidden:
                 self.storage.disconnect(source_chat_id=output_channel)
                 logger.exception(f"Disconnect {output_channel} because of error")
             except Exception:
