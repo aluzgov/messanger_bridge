@@ -38,11 +38,12 @@ class BridgeSettings(pydantic_settings.BaseSettings):
     messanger_left_moderation: bool = True
     messanger_right_moderation: bool = True
 
-    @pydantic.field_validator("messanger_left_admin_chats", "messanger_right_admin_chats",
-                              mode="before")
+    @pydantic.field_validator(
+        "messanger_left_admin_chats", "messanger_right_admin_chats", mode="before"
+    )
     def split_admin_chats(cls, v):
         if isinstance(v, str):
-            return [item.strip() for item in v.split(',')]
+            return [item.strip() for item in v.split(",")]
         elif isinstance(v, int):
             return [str(v)]
 
@@ -50,4 +51,4 @@ class BridgeSettings(pydantic_settings.BaseSettings):
 
     class Config:
         case_sensitive = False
-        env_file_encoding = 'utf-8'
+        env_file_encoding = "utf-8"

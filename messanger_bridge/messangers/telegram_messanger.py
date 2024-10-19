@@ -1,9 +1,18 @@
 import asyncio
 import logging
 import typing
+from io import BytesIO
 
-from telegram import Update, Bot, InputMediaPhoto, InputMediaAudio, InputMediaVideo, \
-    InputMediaDocument
+import aiohttp
+from PIL import Image
+from telegram import (
+    Update,
+    Bot,
+    InputMediaPhoto,
+    InputMediaAudio,
+    InputMediaVideo,
+    InputMediaDocument,
+)
 from telegram.error import Forbidden
 from telegram.ext import (
     Application,
@@ -29,7 +38,9 @@ class TelegramMessanger(AbstractMessanger):
             application = Application.builder().token(self.settings.token).build()
 
             application.add_handler(
-                MessageHandler(filters.TEXT & (~filters.COMMAND), self.handle_text_message)
+                MessageHandler(
+                    filters.TEXT & (~filters.COMMAND), self.handle_text_message
+                )
             )
             application.add_handler(
                 MessageHandler(filters.PHOTO & (~filters.COMMAND), self.handle_photo)
@@ -41,10 +52,14 @@ class TelegramMessanger(AbstractMessanger):
                 MessageHandler(filters.VIDEO & (~filters.COMMAND), self.handle_video)
             )
             application.add_handler(
-                MessageHandler(filters.ANIMATION & (~filters.COMMAND), self.handle_animation)
+                MessageHandler(
+                    filters.ANIMATION & (~filters.COMMAND), self.handle_animation
+                )
             )
             application.add_handler(
-                MessageHandler(filters.ATTACHMENT & (~filters.COMMAND), self.handle_attachment)
+                MessageHandler(
+                    filters.ATTACHMENT & (~filters.COMMAND), self.handle_attachment
+                )
             )
             application.add_handler(
                 CommandHandler(["start", "help"], self.handle_start)
@@ -60,7 +75,9 @@ class TelegramMessanger(AbstractMessanger):
             application.add_handler(CommandHandler("unban", self.handle_unban))
             application.add_handler(CommandHandler("users", self.handle_list_of_users))
             application.add_handler(CommandHandler("approve", self.handle_approve))
-            application.add_handler(CommandHandler("on_moderation", self.handle_on_moderation))
+            application.add_handler(
+                CommandHandler("on_moderation", self.handle_on_moderation)
+            )
             application.add_handler(CommandHandler("nicknames", self.handle_nicknames))
 
             await application.initialize()
@@ -75,10 +92,10 @@ class TelegramMessanger(AbstractMessanger):
             loop.close()
 
     async def handle_text_message(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-                update.message.from_user.username or update.message.from_user.first_name
+            update.message.from_user.username or update.message.from_user.first_name
         )
         reply_to_id = None
         if update.message.reply_to_message:
@@ -97,10 +114,10 @@ class TelegramMessanger(AbstractMessanger):
         await self.new_message(message=message)
 
     async def handle_photo(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-                update.message.from_user.username or update.message.from_user.first_name
+            update.message.from_user.username or update.message.from_user.first_name
         )
         images = []
         if update.message.photo:
@@ -128,17 +145,19 @@ class TelegramMessanger(AbstractMessanger):
         await self.new_message(message=message)
 
     async def handle_audio(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-                update.message.from_user.username or update.message.from_user.first_name
+            update.message.from_user.username or update.message.from_user.first_name
         )
         audios = []
         if update.message.audio:
             file_id = update.message.audio.file_id
             file = await context.bot.get_file(file_id)
             file_path = file.file_path
-            message_file = MessageFile(name=update.message.audio.file_name, url=file_path)
+            message_file = MessageFile(
+                name=update.message.audio.file_name, url=file_path
+            )
             audios.append(message_file)
 
         reply_to_id = None
@@ -159,17 +178,19 @@ class TelegramMessanger(AbstractMessanger):
         await self.new_message(message=message)
 
     async def handle_video(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-                update.message.from_user.username or update.message.from_user.first_name
+            update.message.from_user.username or update.message.from_user.first_name
         )
         videos = []
         if update.message.video:
             file_id = update.message.video.file_id
             file = await context.bot.get_file(file_id)
             file_path = file.file_path
-            message_file = MessageFile(name=update.message.video.file_name, url=file_path)
+            message_file = MessageFile(
+                name=update.message.video.file_name, url=file_path
+            )
             videos.append(message_file)
 
         reply_to_id = None
@@ -190,17 +211,19 @@ class TelegramMessanger(AbstractMessanger):
         await self.new_message(message=message)
 
     async def handle_animation(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-                update.message.from_user.username or update.message.from_user.first_name
+            update.message.from_user.username or update.message.from_user.first_name
         )
         animations = []
         if update.message.animation:
             file_id = update.message.animation.file_id
             file = await context.bot.get_file(file_id)
             file_path = file.file_path
-            message_file = MessageFile(name=update.message.animation.file_name, url=file_path)
+            message_file = MessageFile(
+                name=update.message.animation.file_name, url=file_path
+            )
             animations.append(message_file)
 
         reply_to_id = None
@@ -221,18 +244,30 @@ class TelegramMessanger(AbstractMessanger):
         await self.new_message(message=message)
 
     async def handle_attachment(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         username = (
-                update.message.from_user.username or update.message.from_user.first_name
+            update.message.from_user.username or update.message.from_user.first_name
         )
         documents = []
         if update.message.document:
             file_id = update.message.document.file_id
             file = await context.bot.get_file(file_id)
             file_path = file.file_path
-            message_file = MessageFile(name=update.message.document.file_name, url=file_path)
+            message_file = MessageFile(
+                name=update.message.document.file_name, url=file_path
+            )
             documents.append(message_file)
+
+        stickers = []
+        if update.message.sticker and not update.message.sticker.is_animated:
+            file_id = update.message.sticker.file_id
+            file = await context.bot.get_file(file_id)
+            file_path = file.file_path
+            sticker_file = MessageFile(
+                name=update.message.sticker.set_name, url=file_path
+            )
+            stickers.append(sticker_file)
 
         reply_to_id = None
         if update.message.reply_to_message:
@@ -248,21 +283,24 @@ class TelegramMessanger(AbstractMessanger):
             messanger=MessangerEnum.telegram,
             reply_to_id=reply_to_id,
             documents=documents,
+            stickers=stickers,
         )
         await self.new_message(message=message)
 
     async def handle_start(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         help_message = """Выбери себе никнейм с помощью команды /nickname <твой ник>
 Когда будешь готов(а) к общению, жми /connect"""
         await update.effective_message.reply_text(help_message)
 
     async def handle_connect(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if not self.storage.is_banned(chat_id=str(update.message.chat_id)):
-            if self.settings.moderation and not self.storage.is_moderated(str(update.message.chat_id)):
+            if self.settings.moderation and not self.storage.is_moderated(
+                str(update.message.chat_id)
+            ):
                 self.storage.moderate(chat_id=str(update.message.chat_id))
                 bot = Bot(self.settings.token)
                 for chat_id in self.settings.admin_chats:
@@ -276,13 +314,13 @@ class TelegramMessanger(AbstractMessanger):
                 await update.effective_message.reply_text("Ok")
 
     async def handle_disconnect(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         self.storage.disconnect(source_chat_id=str(update.message.chat_id))
         await update.effective_message.reply_text("Ok")
 
     async def handle_ban(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -292,7 +330,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text(f"Ok {chat_id}")
 
     async def handle_unban(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -302,7 +340,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text(f"Ok {chat_id}")
 
     async def handle_list_of_users(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -317,7 +355,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text("No users")
 
     async def handle_on_moderation(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -332,7 +370,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text("No users")
 
     async def handle_nicknames(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -347,7 +385,7 @@ class TelegramMessanger(AbstractMessanger):
             await update.effective_message.reply_text("No users")
 
     async def handle_approve(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if str(update.effective_user.id) not in self.settings.admin_chats:
             return None
@@ -359,7 +397,7 @@ class TelegramMessanger(AbstractMessanger):
             await bot.send_message(chat_id=chat_id, text="Проходите в вип заааааал")
 
     async def handle_set_nickname(
-            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         try:
             nickname = " ".join(context.args)
@@ -377,6 +415,22 @@ class TelegramMessanger(AbstractMessanger):
     async def send_message(self, message: Message) -> None:
         output_channels = self.storage.get_recipients(source_chat_id=message.chat_id)
 
+        prepared_stickers = []
+        for sticker in message.stickers:
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.get(sticker.url) as response:
+                        sticker_data = BytesIO(await response.read())
+                        image = Image.open(sticker_data)
+                        image = image.convert("RGBA")
+                        image = image.resize((256, 256))
+                        webp_bytes = BytesIO()
+                        image.save(webp_bytes, format="WEBP")
+                        webp_bytes.seek(0)
+                        prepared_stickers.append(webp_bytes)
+                except Exception:
+                    prepared_stickers.append(None)
+
         bot = Bot(self.settings.token)
         for output_channel in output_channels:
             username = self.storage.get_nickname(message.chat_id) or message.username
@@ -384,28 +438,39 @@ class TelegramMessanger(AbstractMessanger):
                 f"{username} [{message.messanger.value}]\n{message.message}"
             )
             try:
-                for _message_content in self.message_parts(message_content, max_size=4000):
+                for _message_content in self.message_parts(
+                    message_content, max_size=4000
+                ):
                     await bot.send_message(
                         chat_id=output_channel,
                         text=_message_content,
                     )
 
                 for image_chunk in self.message_parts(message.images, max_size=10):
-                    image_input = [InputMediaPhoto(media=image.url, filename=image.name) for image in image_chunk]
+                    image_input = [
+                        InputMediaPhoto(media=image.url, filename=image.name)
+                        for image in image_chunk
+                    ]
                     if image_input:
                         await bot.send_media_group(
                             chat_id=output_channel, media=image_input
                         )
 
                 for audio_chunk in self.message_parts(message.audios, max_size=10):
-                    audio_input = [InputMediaAudio(media=audio.url, filename=audio.name) for audio in audio_chunk]
+                    audio_input = [
+                        InputMediaAudio(media=audio.url, filename=audio.name)
+                        for audio in audio_chunk
+                    ]
                     if audio_input:
                         await bot.send_media_group(
                             chat_id=output_channel, media=audio_input
                         )
 
                 for video_chunk in self.message_parts(message.videos, max_size=10):
-                    video_input = [InputMediaVideo(media=video.url, filename=video.name) for video in video_chunk]
+                    video_input = [
+                        InputMediaVideo(media=video.url, filename=video.name)
+                        for video in video_chunk
+                    ]
                     if video_input:
                         await bot.send_media_group(
                             chat_id=output_channel, media=video_input
@@ -413,15 +478,31 @@ class TelegramMessanger(AbstractMessanger):
 
                 for animation in message.animations:
                     await bot.send_animation(
-                        chat_id=output_channel, animation=animation.url,
+                        chat_id=output_channel,
+                        animation=animation.url,
                     )
 
-                for document_chunk in self.message_parts(message.documents, max_size=10):
-                    document_input = [InputMediaDocument(media=document.url, filename=document.name) for document in document_chunk]
+                for document_chunk in self.message_parts(
+                    message.documents, max_size=10
+                ):
+                    document_input = [
+                        InputMediaDocument(media=document.url, filename=document.name)
+                        for document in document_chunk
+                    ]
                     if document_input:
                         await bot.send_media_group(
                             chat_id=output_channel, media=document_input
                         )
+
+                for sticker, prepared_sticker in zip(
+                    message.stickers, prepared_stickers
+                ):
+                    if prepared_sticker is None:
+                        continue
+
+                    await bot.send_sticker(
+                        chat_id=output_channel, sticker=prepared_sticker
+                    )
 
             except Forbidden:
                 self.storage.disconnect(source_chat_id=output_channel)

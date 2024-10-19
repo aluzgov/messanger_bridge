@@ -4,6 +4,7 @@ from io import BytesIO
 
 import aiohttp
 import discord
+from PIL import Image
 
 from messangers.abstract_messanger import AbstractMessanger
 from models.message import Message, MessangerEnum, MessageFile
@@ -27,7 +28,7 @@ async def download_file(session: aiohttp.ClientSession, url: str) -> bytes | Non
                 return None
 
             chunks.append(chunk)
-        file_bytes = b''.join(chunks)
+        file_bytes = b"".join(chunks)
         return file_bytes
 
 
@@ -58,6 +59,7 @@ class DiscordMessanger(AbstractMessanger):
         videos = []
         animations = []
         documents = []
+        stickers = []
         for attachment in discord_message.attachments:
             if attachment.content_type.startswith("image"):
                 message_file = MessageFile(name=attachment.filename, url=attachment.url)
@@ -75,6 +77,11 @@ class DiscordMessanger(AbstractMessanger):
                 message_file = MessageFile(name=attachment.filename, url=attachment.url)
                 documents.append(message_file)
 
+        for sticker in discord_message.stickers:
+            message_file = MessageFile(name=sticker.name, url=sticker.url)
+            print(sticker.name)
+            stickers.append(message_file)
+
         message = Message(
             message_id=str(discord_message.id),
             message=discord_message.content,
@@ -88,6 +95,7 @@ class DiscordMessanger(AbstractMessanger):
             videos=videos,
             animations=animations,
             documents=documents,
+            stickers=stickers,
         )
         await messanger.new_message(message=message)
 
@@ -159,7 +167,9 @@ class DiscordMessanger(AbstractMessanger):
                     animation_data = await download_file(session, animation.url)
                     if animation_data:
                         buffer = BytesIO(animation_data)
-                        file_kwargs["file"] = discord.File(buffer, filename=animation.name)
+                        file_kwargs["file"] = discord.File(
+                            buffer, filename=animation.name
+                        )
                     else:
                         continue
 
@@ -175,7 +185,9 @@ class DiscordMessanger(AbstractMessanger):
                     document_data = await download_file(session, document.url)
                     if document_data:
                         buffer = BytesIO(document_data)
-                        file_kwargs["file"] = discord.File(buffer, filename=document.name)
+                        file_kwargs["file"] = discord.File(
+                            buffer, filename=document.name
+                        )
                     else:
                         continue
 
@@ -185,6 +197,28 @@ class DiscordMessanger(AbstractMessanger):
                         **file_kwargs,
                     )
                     message_content = ""
+
+                for sticker in message.stickers:
+                    if not sticker.url:
+                        continue
+
+                    sticker_data = await download_file(session, sticker.url)
+                    if sticker_data:
+                        buffer = BytesIO(sticker_data)
+                        image = Image.open(buffer).resize((192, 192))
+                        png_bytes = BytesIO()
+                        image.save(png_bytes, format="PNG")
+                        png_bytes.seek(0)
+                        buffer.seek(0)
+                        await webhook.send(
+                            message_content,
+                            username=username,
+                            file=discord.File(
+                                png_bytes, filename=f"{sticker.name}.png"
+                            ),
+                        )
+                    else:
+                        continue
 
                 if message_content:
                     await webhook.send(

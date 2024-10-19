@@ -23,9 +23,7 @@ logging.basicConfig(
 
 
 def run_bridge(file_name: pathlib.Path, bridge_name: str, base_dir: pathlib.Path):
-    storage_dsn = pathlib.Path(
-        base_dir, "data", f"{bridge_name}.json"
-    )
+    storage_dsn = pathlib.Path(base_dir, "data", f"{bridge_name}.json")
     bridge_settings = BridgeSettings(
         name=bridge_name,
         storage_dsn=str(storage_dsn),
@@ -75,7 +73,7 @@ def run_bridge(file_name: pathlib.Path, bridge_name: str, base_dir: pathlib.Path
 
 def main():
     logging.info("Starting...")
-    multiprocessing.set_start_method('spawn')
+    multiprocessing.set_start_method("spawn")
 
     base_dir = pathlib.Path(__file__).resolve().parent.parent
     config_path = pathlib.Path(base_dir, "messangers")
@@ -83,8 +81,9 @@ def main():
 
     for file_name in config_path.glob(".*.env"):
         bridge_name = file_name.name[1:-4]
-        p = multiprocessing.Process(target=run_bridge, args=(file_name, bridge_name, base_dir),
-                                    name=bridge_name)
+        p = multiprocessing.Process(
+            target=run_bridge, args=(file_name, bridge_name, base_dir), name=bridge_name
+        )
         p.start()
         processes.append(p)
 

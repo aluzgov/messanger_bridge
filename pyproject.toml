@@ -19,6 +19,7 @@ discord-py = "^2.4.0"
 pottery = "^3.0.0"
 redis = "4.6.0"
 certifi = "^2024.8.30"
+pillow = "^11.0.0"
 
 
 [tool.poetry.group.dev.dependencies]

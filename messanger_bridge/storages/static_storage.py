@@ -95,9 +95,7 @@ class StaticStorage(AbstractStorage):
 
     def list_of_nicknames(self) -> list[UserModel]:
         return [
-            UserModel(
-                chat_id=chat_id, nickname=nickname
-            )
+            UserModel(chat_id=chat_id, nickname=nickname)
             for chat_id, nickname in self.data.nickname_map.items()
         ]
 
