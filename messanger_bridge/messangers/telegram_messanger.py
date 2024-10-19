@@ -500,6 +500,7 @@ class TelegramMessanger(AbstractMessanger):
                     if prepared_sticker is None:
                         continue
 
+                    prepared_sticker.seek(0)
                     await bot.send_sticker(
                         chat_id=output_channel, sticker=prepared_sticker
                     )

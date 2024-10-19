@@ -79,7 +79,6 @@ class DiscordMessanger(AbstractMessanger):
 
         for sticker in discord_message.stickers:
             message_file = MessageFile(name=sticker.name, url=sticker.url)
-            print(sticker.name)
             stickers.append(message_file)
 
         message = Message(
