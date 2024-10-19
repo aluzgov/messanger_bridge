@@ -1,3 +1,4 @@
+import gzip
 import logging
 from functools import partial
 from io import BytesIO
@@ -5,6 +6,7 @@ from io import BytesIO
 import aiohttp
 import discord
 from PIL import Image
+from rlottie_python import LottieAnimation
 
 from messangers.abstract_messanger import AbstractMessanger
 from models.message import Message, MessangerEnum, MessageFile
@@ -30,6 +32,56 @@ async def download_file(session: aiohttp.ClientSession, url: str) -> bytes | Non
             chunks.append(chunk)
         file_bytes = b"".join(chunks)
         return file_bytes
+
+
+def convert_tgs_to_gif(tgs_bytes: BytesIO) -> BytesIO:
+    tgs_bytes.seek(0)
+    animation =LottieAnimation.from_tgs(tgs_bytes)
+    gif_bytes = BytesIO()
+
+    fps_orig = animation.lottie_animation_get_framerate()
+    duration = animation.lottie_animation_get_duration()
+    fps = min(fps_orig, 50)
+
+    frames = int(duration * fps)
+    frame_duration = 1000 / fps
+
+    frame_num_start = 0
+    frame_num_end = frames
+
+    im_list = []
+    for frame in range(frame_num_start, frame_num_end):
+        pos = frame / frame_num_end
+        frame_num = animation.lottie_animation_get_frame_at_pos(pos)
+        img = animation.render_pillow_frame(
+            frame_num=frame_num,
+            width=192,
+            height=192,
+        ).copy()
+        im_list.append(img.convert('RGBA'))
+
+    palette_image = im_list[0].convert('RGB').convert('P', palette=Image.ADAPTIVE, colors=256)
+    converted_frames = []
+    for img in im_list:
+        img_p = img.convert('RGB').quantize(palette=palette_image)
+        converted_frames.append(img_p)
+
+    transparent_color = 0
+    for img in converted_frames:
+        img.info['transparency'] = transparent_color
+
+    converted_frames[0].save(
+        gif_bytes,
+        save_all=True,
+        append_images=converted_frames[1:],
+        duration=int(frame_duration),
+        format="GIF",
+        transparency=transparent_color,
+        loop=0,
+        disposal=2,
+    )
+    gif_bytes.seek(0)
+    return gif_bytes
 
 
 class DiscordMessanger(AbstractMessanger):
@@ -61,7 +113,10 @@ class DiscordMessanger(AbstractMessanger):
         documents = []
         stickers = []
         for attachment in discord_message.attachments:
-            if attachment.content_type.startswith("image"):
+            if attachment.filename.endswith(".gif"):
+                message_file = MessageFile(name=attachment.filename, url=attachment.url)
+                animations.append(message_file)
+            elif attachment.content_type.startswith("image"):
                 message_file = MessageFile(name=attachment.filename, url=attachment.url)
                 images.append(message_file)
             elif attachment.content_type.startswith("audio"):
@@ -70,9 +125,6 @@ class DiscordMessanger(AbstractMessanger):
             elif attachment.content_type.startswith("video"):
                 message_file = MessageFile(name=attachment.filename, url=attachment.url)
                 videos.append(message_file)
-            elif attachment.filename.endswith(".gif"):
-                message_file = MessageFile(name=attachment.filename, url=attachment.url)
-                animations.append(message_file)
             else:
                 message_file = MessageFile(name=attachment.filename, url=attachment.url)
                 documents.append(message_file)
@@ -198,9 +250,6 @@ class DiscordMessanger(AbstractMessanger):
                     message_content = ""
 
                 for sticker in message.stickers:
-                    if not sticker.url:
-                        continue
-
                     sticker_data = await download_file(session, sticker.url)
                     if sticker_data:
                         buffer = BytesIO(sticker_data)
@@ -216,8 +265,23 @@ class DiscordMessanger(AbstractMessanger):
                                 png_bytes, filename=f"{sticker.name}.png"
                             ),
                         )
+                        message_content = ""
                     else:
                         continue
+
+                for animated_sticker in message.animated_stickers:
+                    sticker_data = await download_file(session, animated_sticker.url)
+                    if sticker_data:
+                        buffer = BytesIO(sticker_data)
+                        gif_buffer = convert_tgs_to_gif(buffer)
+                        await webhook.send(
+                            message_content,
+                            username=username,
+                            file=discord.File(
+                                gif_buffer, filename=f"{animated_sticker.name}.gif"
+                            ),
+                        )
+                        message_content = ""
 
                 if message_content:
                     await webhook.send(

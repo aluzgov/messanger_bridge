@@ -260,14 +260,18 @@ class TelegramMessanger(AbstractMessanger):
             documents.append(message_file)
 
         stickers = []
-        if update.message.sticker and not update.message.sticker.is_animated:
+        animated_stickers = []
+        if update.message.sticker:
             file_id = update.message.sticker.file_id
             file = await context.bot.get_file(file_id)
             file_path = file.file_path
             sticker_file = MessageFile(
                 name=update.message.sticker.set_name, url=file_path
             )
-            stickers.append(sticker_file)
+            if update.message.sticker.is_animated:
+                animated_stickers.append(sticker_file)
+            else:
+                stickers.append(sticker_file)
 
         reply_to_id = None
         if update.message.reply_to_message:
@@ -284,6 +288,7 @@ class TelegramMessanger(AbstractMessanger):
             reply_to_id=reply_to_id,
             documents=documents,
             stickers=stickers,
+            animated_stickers=animated_stickers,
         )
         await self.new_message(message=message)
 

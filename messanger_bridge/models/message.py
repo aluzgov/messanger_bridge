@@ -29,3 +29,4 @@ class Message(pydantic.BaseModel):
     animations: list[MessageFile] = pydantic.Field(default_factory=list)
     documents: list[MessageFile] = pydantic.Field(default_factory=list)
     stickers: list[MessageFile] = pydantic.Field(default_factory=list)
+    animated_stickers: list[MessageFile] = pydantic.Field(default_factory=list)
