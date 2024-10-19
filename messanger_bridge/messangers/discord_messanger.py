@@ -36,7 +36,7 @@ async def download_file(session: aiohttp.ClientSession, url: str) -> bytes | Non
 
 def convert_tgs_to_gif(tgs_bytes: BytesIO) -> BytesIO:
     tgs_bytes.seek(0)
-    animation =LottieAnimation.from_tgs(tgs_bytes)
+    animation = LottieAnimation.from_tgs(tgs_bytes)
     gif_bytes = BytesIO()
 
     fps_orig = animation.lottie_animation_get_framerate()
@@ -58,17 +58,19 @@ def convert_tgs_to_gif(tgs_bytes: BytesIO) -> BytesIO:
             width=192,
             height=192,
         ).copy()
-        im_list.append(img.convert('RGBA'))
+        im_list.append(img.convert("RGBA"))
 
-    palette_image = im_list[0].convert('RGB').convert('P', palette=Image.ADAPTIVE, colors=256)
+    palette_image = (
+        im_list[0].convert("RGB").convert("P", palette=Image.ADAPTIVE, colors=256)
+    )
     converted_frames = []
     for img in im_list:
-        img_p = img.convert('RGB').quantize(palette=palette_image)
+        img_p = img.convert("RGB").quantize(palette=palette_image)
         converted_frames.append(img_p)
 
     transparent_color = 0
     for img in converted_frames:
-        img.info['transparency'] = transparent_color
+        img.info["transparency"] = transparent_color
 
     converted_frames[0].save(
         gif_bytes,

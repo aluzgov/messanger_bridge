@@ -13,7 +13,7 @@ from telegram import (
     InputMediaVideo,
     InputMediaDocument,
 )
-from telegram.error import Forbidden
+from telegram.error import Forbidden, BadRequest
 from telegram.ext import (
     Application,
     MessageHandler,
@@ -26,6 +26,24 @@ from messangers.abstract_messanger import AbstractMessanger
 from models.message import Message, MessangerEnum, MessageFile
 
 logger = logging.getLogger(__name__)
+
+
+def adjust_aspect_ratio(image: Image.Image, max_ratio: float = 19.0) -> Image.Image:
+    width, height = image.size
+    aspect_ratio = width / height
+
+    if aspect_ratio > max_ratio:
+        new_height = int(width / max_ratio)
+        new_image = Image.new("RGBA", (width, new_height), (255, 255, 255, 0))
+        new_image.paste(image, (0, (new_height - height) // 2))
+    elif aspect_ratio < 1 / max_ratio:
+        new_width = int(height * max_ratio)
+        new_image = Image.new("RGBA", (new_width, height), (255, 255, 255, 0))
+        new_image.paste(image, ((new_width - width) // 2, 0))
+    else:
+        new_image = image
+
+    return new_image
 
 
 class TelegramMessanger(AbstractMessanger):
@@ -436,6 +454,7 @@ class TelegramMessanger(AbstractMessanger):
                 except Exception:
                     prepared_stickers.append(None)
 
+        files_cache = {}
         bot = Bot(self.settings.token)
         for output_channel in output_channels:
             username = self.storage.get_nickname(message.chat_id) or message.username
@@ -457,9 +476,31 @@ class TelegramMessanger(AbstractMessanger):
                         for image in image_chunk
                     ]
                     if image_input:
-                        await bot.send_media_group(
-                            chat_id=output_channel, media=image_input
-                        )
+                        try:
+                            await bot.send_media_group(
+                                chat_id=output_channel, media=image_input
+                            )
+                        except BadRequest:
+                            for image in image_chunk:
+                                if image.url not in files_cache:
+                                    async with aiohttp.ClientSession() as session:
+                                        async with session.get(image.url) as response:
+                                            image_data = BytesIO(await response.read())
+                                            image_pillow = Image.open(image_data)
+                                            image_pillow = adjust_aspect_ratio(
+                                                image_pillow
+                                            )
+                                            image_bytes = BytesIO()
+                                            image_pillow.save(image_bytes, format="PNG")
+                                            image_bytes.seek(0)
+                                            files_cache[image.url] = image_bytes
+
+                                image_bytes = files_cache[image.url]
+                                image_bytes.seek(0)
+                                await bot.send_photo(
+                                    chat_id=output_channel,
+                                    photo=image_bytes,
+                                )
 
                 for audio_chunk in self.message_parts(message.audios, max_size=10):
                     audio_input = [
