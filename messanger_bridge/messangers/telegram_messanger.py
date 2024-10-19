@@ -37,7 +37,7 @@ def adjust_aspect_ratio(image: Image.Image, max_ratio: float = 19.0) -> Image.Im
         new_image = Image.new("RGBA", (width, new_height), (255, 255, 255, 0))
         new_image.paste(image, (0, (new_height - height) // 2))
     elif aspect_ratio < 1 / max_ratio:
-        new_width = int(height * max_ratio)
+        new_width = int(height / max_ratio)
         new_image = Image.new("RGBA", (new_width, height), (255, 255, 255, 0))
         new_image.paste(image, ((new_width - width) // 2, 0))
     else:
