@@ -61,6 +61,7 @@ class TelegramMessanger(AbstractMessanger):
             application.add_handler(CommandHandler("users", self.handle_list_of_users))
             application.add_handler(CommandHandler("approve", self.handle_approve))
             application.add_handler(CommandHandler("on_moderation", self.handle_on_moderation))
+            application.add_handler(CommandHandler("nicknames", self.handle_nicknames))
 
             await application.initialize()
             await application.start()
@@ -261,7 +262,7 @@ class TelegramMessanger(AbstractMessanger):
             self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         if not self.storage.is_banned(chat_id=str(update.message.chat_id)):
-            if self.settings.moderation:
+            if self.settings.moderation and not self.storage.is_moderated(str(update.message.chat_id)):
                 self.storage.moderate(chat_id=str(update.message.chat_id))
                 bot = Bot(self.settings.token)
                 for chat_id in self.settings.admin_chats:
@@ -330,6 +331,21 @@ class TelegramMessanger(AbstractMessanger):
         else:
             await update.effective_message.reply_text("No users")
 
+    async def handle_nicknames(
+            self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        if str(update.effective_user.id) not in self.settings.admin_chats:
+            return None
+
+        users = self.storage.list_of_nicknames()
+        users_result = "\n".join(
+            [f"{user.chat_id} - {user.nickname}" for user in users]
+        )
+        if users_result:
+            await update.effective_message.reply_text(users_result)
+        else:
+            await update.effective_message.reply_text("No users")
+
     async def handle_approve(
             self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -340,7 +356,7 @@ class TelegramMessanger(AbstractMessanger):
         for chat_id in context.args:
             self.storage.approve(chat_id=chat_id)
             await update.effective_message.reply_text(f"Ok {chat_id}")
-            await bot.send_message(chat_id=chat_id, text=f"Проходите в вип заааааал")
+            await bot.send_message(chat_id=chat_id, text="Проходите в вип заааааал")
 
     async def handle_set_nickname(
             self, update: Update, context: ContextTypes.DEFAULT_TYPE

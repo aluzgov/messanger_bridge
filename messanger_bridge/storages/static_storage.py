@@ -12,6 +12,7 @@ class DataModel(pydantic.BaseModel):
     nickname_map: dict[str, str] = {}
     banned_users: set[str] = set()
     on_moderation: set[str] = set()
+    moderated_users: set[str] = set()
 
 
 class StaticStorage(AbstractStorage):
@@ -92,9 +93,19 @@ class StaticStorage(AbstractStorage):
             for chat_id in self.data.on_moderation
         ]
 
+    def list_of_nicknames(self) -> list[UserModel]:
+        return [
+            UserModel(
+                chat_id=chat_id, nickname=nickname
+            )
+            for chat_id, nickname in self.data.nickname_map.items()
+        ]
+
     def approve(self, chat_id: str) -> None:
         with contextlib.suppress(KeyError):
             self.data.on_moderation.remove(chat_id)
+
+        self.data.moderated_users.add(chat_id)
 
         self.connect(chat_id)
         self.dump()
@@ -102,3 +113,6 @@ class StaticStorage(AbstractStorage):
     def moderate(self, chat_id: str) -> None:
         self.data.on_moderation.add(chat_id)
         self.dump()
+
+    def is_moderated(self, chat_id: str) -> bool:
+        return chat_id in self.data.moderated_users

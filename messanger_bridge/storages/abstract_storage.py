@@ -56,9 +56,17 @@ class AbstractStorage(abc.ABC):
         return []
 
     @abc.abstractmethod
+    def list_of_nicknames(self) -> list[UserModel]:
+        return []
+
+    @abc.abstractmethod
     def approve(self, chat_id: str) -> None:
         pass
 
     @abc.abstractmethod
     def moderate(self, chat_id: str) -> None:
+        pass
+
+    @abc.abstractmethod
+    def is_moderated(self, chat_id: str) -> bool:
         pass
