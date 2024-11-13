@@ -468,6 +468,7 @@ class TelegramMessanger(AbstractMessanger):
                     await bot.send_message(
                         chat_id=output_channel,
                         text=_message_content,
+                        disable_web_page_preview=True,
                     )
 
                 for image_chunk in self.message_parts(message.images, max_size=10):
